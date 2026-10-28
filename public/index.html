@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LouerFacile · Chat</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f3f5f9;margin:0;display:flex;justify-content:center}
+main{width:100%;max-width:560px;height:100vh;display:flex;flex-direction:column;background:#fff}
+h1{font-size:18px;margin:0;padding:16px;background:#1f4fd8;color:#fff}
+#log{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:80%;padding:10px 14px;border-radius:14px;line-height:1.4}
+.me{align-self:flex-end;background:#1f4fd8;color:#fff}
+.bot{align-self:flex-start;background:#e8ecf5}
+.err{align-self:flex-start;background:#fde8e8;color:#9b1c1c}
+#chips{padding:0 16px 8px;display:flex;gap:8px;flex-wrap:wrap}
+#chips button{border:1px solid #1f4fd8;background:#fff;color:#1f4fd8;border-radius:16px;padding:6px 12px;cursor:pointer}
+#bar{display:flex;gap:8px;padding:12px;border-top:1px solid #dde}
+#in{flex:1;padding:10px;border:1px solid #bbc;border-radius:8px;font-size:16px}
+#go{background:#1f4fd8;color:#fff;border:0;border-radius:8px;padding:0 18px;font-size:16px;cursor:pointer}
+</style></head><body><main>
+<h1>LouerFacile · Aide aux propriétaires</h1>
+<div id="log" aria-live="polite"><div class="m bot">Bonjour ! Je réponds aux questions simples des propriétaires.</div></div>
+<div id="chips"></div>
+<div id="bar"><input id="in" placeholder="Votre question..." autocomplete="off"><button id="go">Envoyer</button></div>
+</main>
+<script>
+const log=document.getElementById('log'),inp=document.getElementById('in'),go=document.getElementById('go');
+function add(t,c){const d=document.createElement('div');d.className='m '+c;d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;return d}
+for(const s of ['Révision du loyer','Rendre la caution','Quittance de loyer','Loyer impayé']){
+  const b=document.createElement('button');b.textContent=s;b.onclick=()=>{inp.value=s;send()};document.getElementById('chips').appendChild(b)}
+async function send(){
+  const text=inp.value.trim();
+  if(!text){add('Écrivez un message avant d\'envoyer.','err');return}
+  add(text,'me');inp.value='';go.disabled=true;
+  const wait=add('Je réfléchis...','bot');
+  const slow=setTimeout(()=>{wait.textContent='Ça prend un peu plus de temps que d\'habitude...'},2000);
+  const ctl=new AbortController();const kill=setTimeout(()=>ctl.abort(),8000);
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text}),signal:ctl.signal});
+    if(!r.ok)throw new Error('http '+r.status);
+    wait.textContent=(await r.json()).reply;
+  }catch(e){
+    wait.className='m err';
+    wait.textContent=e.name==='AbortError'?'Le service ne répond pas. Réessayez dans un instant.':'Le service est momentanément indisponible. Vos données ne sont pas perdues, réessayez dans un instant.';
+  }finally{clearTimeout(slow);clearTimeout(kill);go.disabled=false;inp.focus()}
+}
+go.onclick=send;inp.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+</script></body></html>
